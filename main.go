@@ -39,7 +39,10 @@ func main() {
 	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(filepathRoot)))))
 
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
+
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
+	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
+
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerCreateChirp)
 	mux.HandleFunc("GET /api/chirps", apiCfg.handlerGetAllChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerGetChirp)
@@ -51,7 +54,6 @@ func main() {
 		Handler: mux,
 		Addr:    ":" + port,
 	}
-
 	log.Printf("serving file from %s for http server at port %s...\n", filepathRoot, port)
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Fatalf("[error] http server ListenAndServe: %v", err)
