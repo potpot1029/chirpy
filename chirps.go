@@ -123,6 +123,44 @@ func replaceProfaneWords(chirp string) string {
 	return strings.Join(words, " ")
 }
 
+func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, req *http.Request) {
+	// get chirp
+	chirpID := uuid.MustParse(req.PathValue("chirpID"))
+
+	chirp, err := cfg.dbQueries.GetChirp(req.Context(), chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "error getting chirp from database", err)
+		return
+	}
+
+	// get user info
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "cannot retrieve access token from header", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "invalid access token", err)
+		return
+	}
+
+	if userID != chirp.UserID { // unauthorized
+		respondWithError(w, http.StatusForbidden, "you cannot delete a chirp that is not yours", nil)
+		return
+	}
+
+	// delete chirp
+	err = cfg.dbQueries.DeleteChirp(req.Context(), chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "error deleting chirp in database", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusNoContent, nil)
+}
+
 func respondWithError(w http.ResponseWriter, code int, msg string, err error) {
 	if err != nil {
 		log.Println(err)
