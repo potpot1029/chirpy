@@ -18,6 +18,7 @@ type apiConfig struct {
 	dbQueries      *database.Queries
 	platform       string
 	jwtSecret      string
+	polkaKey       string
 }
 
 func main() {
@@ -36,6 +37,7 @@ func main() {
 		dbQueries: database.New(db),
 		platform:  os.Getenv("PLATFORM"),
 		jwtSecret: os.Getenv("JWT_SECRET"),
+		polkaKey:  os.Getenv("POLKA_KEY"),
 	}
 
 	mux := http.NewServeMux()
@@ -45,6 +47,8 @@ func main() {
 
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
 	mux.HandleFunc("PUT /api/users", apiCfg.handlerUpdateUser)
+
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerPolkaWebhook)
 
 	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
 
