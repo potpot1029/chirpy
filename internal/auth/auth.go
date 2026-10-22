@@ -53,7 +53,7 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 	})
 
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, fmt.Errorf("error parsing JWT token: %w", err)
 	}
 
 	claims, ok := token.Claims.(*jwt.RegisteredClaims)
@@ -61,36 +61,43 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("invalid token")
 	}
 
-	return uuid.MustParse(claims.Subject), nil
+	userID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid subject in token: %w", err)
+	}
+
+	return userID, nil
 }
 
-func GetBearerToken(headers http.Header) (string, error) {
+func getAuthValue(headers http.Header, scheme string) (string, error) {
 	authHeader := headers.Get("Authorization")
-
 	if authHeader == "" {
 		return "", fmt.Errorf("missing authorization header")
 	}
 
-	bearerToken := strings.Split(authHeader, " ")[1]
+	value, found := strings.CutPrefix(authHeader, scheme+" ")
+	if !found {
+		return "", fmt.Errorf("authorization header is not using scheme %s", scheme)
+	}
 
-	return bearerToken, nil
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", fmt.Errorf("authorization header has no value for scheme %s", scheme)
+	}
+
+	return value, nil
+}
+
+func GetBearerToken(headers http.Header) (string, error) {
+	return getAuthValue(headers, "Bearer")
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	return getAuthValue(headers, "ApiKey")
 }
 
 func MakeRefreshToken() string {
 	key := make([]byte, 32)
 	rand.Read(key)
 	return hex.EncodeToString(key)
-}
-
-func GetAPIKey(headers http.Header) (string, error) {
-
-	authHeader := headers.Get("Authorization")
-
-	if authHeader == "" {
-		return "", fmt.Errorf("missing authorization header")
-	}
-
-	apiKey := strings.Split(authHeader, " ")[1]
-
-	return apiKey, nil
 }
