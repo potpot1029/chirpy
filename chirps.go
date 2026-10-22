@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/potpot1029/http-server-go/internal/auth"
-	"github.com/potpot1029/http-server-go/internal/database"
+	"github.com/potpot1029/chirpy/internal/auth"
+	"github.com/potpot1029/chirpy/internal/database"
 )
 
 type Chirp struct {

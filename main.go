@@ -10,7 +10,7 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 
-	"github.com/potpot1029/http-server-go/internal/database"
+	"github.com/potpot1029/chirpy/internal/database"
 )
 
 type apiConfig struct {
