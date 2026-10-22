@@ -31,7 +31,7 @@ func main() {
 	defer db.Close()
 
 	const port = "8080"
-	const filepathRoot = "."
+	const filepathRoot = "./public"
 
 	apiCfg := apiConfig{
 		dbQueries: database.New(db),
@@ -67,7 +67,7 @@ func main() {
 		Handler: mux,
 		Addr:    ":" + port,
 	}
-	log.Printf("serving file from %s for http server at port %s...\n", filepathRoot, port)
+	log.Printf("serving files from %s at /app/ on port %s", filepathRoot, port)
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Fatalf("[error] http server ListenAndServe: %v", err)
 	}
