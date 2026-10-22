@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
-	"os"
 	"sync/atomic"
 
 	"github.com/joho/godotenv"
@@ -23,21 +22,25 @@ type apiConfig struct {
 
 func main() {
 	godotenv.Load()
-	dbURL := os.Getenv("DB_URL")
-	db, err := sql.Open("postgres", dbURL)
+
+	cfg, err := loadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db, err := sql.Open("postgres", cfg.dbURL)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	const port = "8080"
 	const filepathRoot = "./public"
 
 	apiCfg := apiConfig{
 		dbQueries: database.New(db),
-		platform:  os.Getenv("PLATFORM"),
-		jwtSecret: os.Getenv("JWT_SECRET"),
-		polkaKey:  os.Getenv("POLKA_KEY"),
+		platform:  cfg.platform,
+		jwtSecret: cfg.jwtSecret,
+		polkaKey:  cfg.polkaKey,
 	}
 
 	mux := http.NewServeMux()
@@ -65,9 +68,9 @@ func main() {
 
 	server := http.Server{
 		Handler: mux,
-		Addr:    ":" + port,
+		Addr:    ":" + cfg.port,
 	}
-	log.Printf("serving files from %s at /app/ on port %s", filepathRoot, port)
+	log.Printf("serving files from %s at /app/ on port %s", filepathRoot, cfg.port)
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Fatalf("[error] http server ListenAndServe: %v", err)
 	}
