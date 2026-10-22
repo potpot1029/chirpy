@@ -34,8 +34,6 @@ func main() {
 	}
 	defer db.Close()
 
-	const filepathRoot = "./public"
-
 	apiCfg := apiConfig{
 		dbQueries: database.New(db),
 		platform:  cfg.platform,
@@ -43,31 +41,8 @@ func main() {
 		polkaKey:  cfg.polkaKey,
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(filepathRoot)))))
-
-	mux.HandleFunc("GET /api/healthz", handlerReadiness)
-
-	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
-	mux.HandleFunc("PUT /api/users", apiCfg.handlerUpdateUser)
-
-	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerPolkaWebhook)
-
-	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
-
-	mux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
-	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
-
-	mux.HandleFunc("POST /api/chirps", apiCfg.handlerCreateChirp)
-	mux.HandleFunc("GET /api/chirps", apiCfg.handlerGetAllChirps)
-	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerGetChirp)
-	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerDeleteChirp)
-
-	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetric)
-	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
-
 	server := http.Server{
-		Handler: mux,
+		Handler: apiCfg.routes(),
 		Addr:    ":" + cfg.port,
 	}
 	log.Printf("serving files from %s at /app/ on port %s", filepathRoot, cfg.port)
