@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/potpot1029/chirpy/internal/auth"
@@ -31,11 +32,10 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, req *http.Reques
 	decoder := json.NewDecoder(req.Body)
 	params := parameter{}
 	if err := decoder.Decode(&params); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "error decoding request body", err)
+		respondWithError(w, http.StatusBadRequest, "error decoding request body", err)
 		return
 	}
 
-	// authorization
 	bearerToken, err := auth.GetBearerToken(req.Header)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "cannot retrieve bearer token", err)
@@ -48,9 +48,8 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	// chirps checking
 	const maxChirpLength = 140
-	if len(params.Body) > maxChirpLength {
+	if utf8.RuneCountInString(params.Body) > maxChirpLength {
 		respondWithError(w, http.StatusBadRequest, "chirp is too long", nil)
 		return
 	}
@@ -71,15 +70,20 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, req *http.Reques
 }
 
 func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, req *http.Request) {
-	// optional paramaters
-	authorID := req.URL.Query().Get("author_id")
+	authorIDStr := req.URL.Query().Get("author_id")
 	sortOrder := req.URL.Query().Get("sort")
 
 	var dbChirps []database.Chirp
 	var err error
 
-	if authorID != "" {
-		dbChirps, err = cfg.dbQueries.GetChirpsByUserID(req.Context(), uuid.MustParse(authorID))
+	if authorIDStr != "" {
+		authorID, err := uuid.Parse(authorIDStr)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "invalid author ID", err)
+			return
+		}
+
+		dbChirps, err = cfg.dbQueries.GetChirpsByUserID(req.Context(), authorID)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "error getting chirps from database", err)
 			return
@@ -109,7 +113,11 @@ func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, req *http.Request) 
 		Chirp
 	}
 
-	chirpID := uuid.MustParse(req.PathValue("chirpID"))
+	chirpID, err := uuid.Parse(req.PathValue("chirpID"))
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid chirp ID", err)
+		return
+	}
 
 	chirp, err := cfg.dbQueries.GetChirp(req.Context(), chirpID)
 	if err != nil {
@@ -143,8 +151,11 @@ func replaceProfaneWords(chirp string) string {
 }
 
 func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, req *http.Request) {
-	// get chirp
-	chirpID := uuid.MustParse(req.PathValue("chirpID"))
+	chirpID, err := uuid.Parse(req.PathValue("chirpID"))
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid chirp ID", err)
+		return
+	}
 
 	chirp, err := cfg.dbQueries.GetChirp(req.Context(), chirpID)
 	if err != nil {
@@ -152,7 +163,6 @@ func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	// get user info
 	token, err := auth.GetBearerToken(req.Header)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "cannot retrieve access token from header", err)
@@ -165,12 +175,11 @@ func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	if userID != chirp.UserID { // unauthorized
+	if userID != chirp.UserID {
 		respondWithError(w, http.StatusForbidden, "you cannot delete a chirp that is not yours", nil)
 		return
 	}
 
-	// delete chirp
 	err = cfg.dbQueries.DeleteChirp(req.Context(), chirpID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "error deleting chirp in database", err)
