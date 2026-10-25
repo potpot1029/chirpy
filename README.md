@@ -38,6 +38,10 @@ Following the course, I built the APIs to support the following features:
 - [goose](https://github.com/pressly/goose) for database migrations
 - [sqlc](https://sqlc.dev/) (only if you change the SQL queries)
 
+I tried add things with AI guidance after finishing the course:
+
+- Docker (optional, to run the server as a container)
+
 ## how to run?
 
 1. Clone the repository:
@@ -80,6 +84,27 @@ Following the course, I built the APIs to support the following features:
    ```
 
    The server listens on `http://localhost:8080` unless `PORT` is set.
+
+### with Docker
+
+Instead of step 5, you can build and run the server as a container. Steps 1–4 still apply: the image does not include PostgreSQL or run the migrations.
+
+1. Build the image (requires [BuildKit](https://docs.docker.com/build/buildkit/), e.g. the `docker-buildx` package):
+
+   ```sh
+   docker build -t chirpy .
+   ```
+
+2. Run it with your `.env`:
+
+   ```sh
+   docker run --rm --network host --env-file .env chirpy
+   ```
+
+   - `--network host` (Linux) lets the container reach PostgreSQL on `localhost`. Without it, `localhost` in `DB_URL` refers to the container itself.
+   - `docker run --env-file` does not strip quotes, so values in `.env` must be unquoted (as in `.env.example`).
+
+The image is built on distroless and runs as a non-root user. `.env` is excluded from the build by `.dockerignore`, so secrets are only passed in at run time.
 
 ## API
 
