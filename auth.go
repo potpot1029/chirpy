@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -32,13 +34,17 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 	params := parameter{}
 	if err := decoder.Decode(&params); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "error decoding request body", err)
+		respondWithError(w, http.StatusBadRequest, "error decoding request body", err)
 		return
 	}
 
 	user, err := cfg.dbQueries.GetUserByEmail(req.Context(), params.Email)
+	if errors.Is(err, sql.ErrNoRows) {
+		respondWithError(w, http.StatusUnauthorized, "incorrect email or password", nil)
+		return
+	}
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "error getting user info by email", err)
+		respondWithError(w, http.StatusInternalServerError, "error getting user info", err)
 		return
 	}
 
@@ -53,14 +59,12 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// access token
 	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Hour)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "error making JWT token", err)
 		return
 	}
 
-	// refresh token
 	refreshToken := auth.MakeRefreshToken()
 	_, err = cfg.dbQueries.CreateRefreshToken(req.Context(), database.CreateRefreshTokenParams{
 		Token:  refreshToken,
@@ -111,7 +115,6 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// generate new access token
 	token, err := auth.MakeJWT(refreshTokenEntry.UserID, cfg.jwtSecret, time.Hour)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "error making JWT token", err)
@@ -124,21 +127,21 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, req *http.Request) {
 }
 
 func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, req *http.Request) {
-	type response struct {
-		Token string `json:"token"`
-	}
-
 	refreshToken, err := auth.GetBearerToken(req.Header)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "cannot retrieve refresh token from header", err)
 		return
 	}
 
-	err = cfg.dbQueries.RevokeRefreshToken(req.Context(), refreshToken)
+	n, err := cfg.dbQueries.RevokeRefreshToken(req.Context(), refreshToken)
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "invalid refresh token", err)
+		respondWithError(w, http.StatusInternalServerError, "error revoking refresh token", err)
+		return
+	}
+	if n == 0 {
+		respondWithError(w, http.StatusUnauthorized, "invalid refresh token", nil)
 		return
 	}
 
-	respondWithJSON(w, http.StatusNoContent, response{})
+	respondWithJSON(w, http.StatusNoContent, nil)
 }

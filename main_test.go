@@ -54,6 +54,20 @@ func newTestDB(t *testing.T) *database.Queries {
 	return dbQueries
 }
 
+// newBrokenTestDB returns queries backed by a closed database, so every query
+// fails. It needs no real database, so tests using it always run.
+func newBrokenTestDB(t *testing.T) *database.Queries {
+	t.Helper()
+
+	db, err := sql.Open("postgres", "postgres://localhost/unused")
+	if err != nil {
+		t.Fatalf("error opening broken test database: %v", err)
+	}
+	db.Close()
+
+	return database.New(db)
+}
+
 func newTestServer(t *testing.T, dbQueries *database.Queries) (*httptest.Server, *apiConfig) {
 	t.Helper()
 
