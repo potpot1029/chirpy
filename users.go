@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/potpot1029/chirpy/internal/auth"
 	"github.com/potpot1029/chirpy/internal/database"
 )
@@ -30,7 +32,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, req *http.Request
 	decoder := json.NewDecoder(req.Body)
 	params := parameter{}
 	if err := decoder.Decode(&params); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "error decoding request body", err)
+		respondWithError(w, http.StatusBadRequest, "error decoding request body", err)
 		return
 	}
 
@@ -45,6 +47,12 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, req *http.Request
 		HashedPassword: hash,
 	})
 	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			respondWithError(w, http.StatusConflict, "email already registered", err)
+			return
+		}
+
 		respondWithError(w, http.StatusInternalServerError, "error creating user in database", err)
 		return
 	}
@@ -69,11 +77,10 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, req *http.Request
 		User
 	}
 
-	// decode request
 	decoder := json.NewDecoder(req.Body)
 	params := parameter{}
 	if err := decoder.Decode(&params); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "error decoding request body", err)
+		respondWithError(w, http.StatusBadRequest, "error decoding request body", err)
 		return
 	}
 
@@ -83,7 +90,6 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	// get user info
 	token, err := auth.GetBearerToken(req.Header)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "cannot retrieve access token from header", err)
@@ -108,7 +114,13 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, req *http.Request
 		HashedPassword: hash,
 	})
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "error creating user in database", err)
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			respondWithError(w, http.StatusConflict, "email already registered", err)
+			return
+		}
+
+		respondWithError(w, http.StatusInternalServerError, "error updating user in database", err)
 		return
 	}
 
