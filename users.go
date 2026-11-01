@@ -84,14 +84,14 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	hash, err := auth.HashPassword(params.Password)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "error hashing password", err)
+	userID, ok := cfg.authenticatedUserID(w, req)
+	if !ok {
 		return
 	}
 
-	userID, ok := cfg.authenticatedUserID(w, req)
-	if !ok {
+	hash, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "error hashing password", err)
 		return
 	}
 
