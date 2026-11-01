@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"sort"
 	"strings"
@@ -112,8 +114,12 @@ func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, req *http.Request) 
 	}
 
 	chirp, err := cfg.dbQueries.GetChirp(req.Context(), chirpID)
+	if errors.Is(err, sql.ErrNoRows) {
+		respondWithError(w, http.StatusNotFound, "chirp not found", err)
+		return
+	}
 	if err != nil {
-		respondWithError(w, http.StatusNotFound, "error getting chirp from database", err)
+		respondWithError(w, http.StatusInternalServerError, "error getting chirp from database", err)
 		return
 	}
 
@@ -149,14 +155,18 @@ func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	chirp, err := cfg.dbQueries.GetChirp(req.Context(), chirpID)
-	if err != nil {
-		respondWithError(w, http.StatusNotFound, "error getting chirp from database", err)
+	userID, ok := cfg.authenticatedUserID(w, req)
+	if !ok {
 		return
 	}
 
-	userID, ok := cfg.authenticatedUserID(w, req)
-	if !ok {
+	chirp, err := cfg.dbQueries.GetChirp(req.Context(), chirpID)
+	if errors.Is(err, sql.ErrNoRows) {
+		respondWithError(w, http.StatusNotFound, "chirp not found", err)
+		return
+	}
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "error getting chirp from database", err)
 		return
 	}
 

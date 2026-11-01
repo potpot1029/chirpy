@@ -365,6 +365,12 @@ func TestDeleteChirp(t *testing.T) {
 			wantStatus: http.StatusNotFound,
 		},
 		{
+			name:       "unknown chirp without token",
+			path:       "/api/chirps/" + uuid.NewString(),
+			authHeader: "",
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name:       "missing token",
 			path:       chirpPath,
 			authHeader: "",
@@ -422,5 +428,27 @@ func TestDeleteChirp(t *testing.T) {
 				t.Errorf("DELETE %s expects status %d, got %d: %s", tt.path, tt.wantStatus, status, body)
 			}
 		})
+	}
+}
+
+func TestGetChirpDatabaseError(t *testing.T) {
+	server, _ := newTestServer(t, newBrokenTestDB(t))
+
+	path := "/api/chirps/" + uuid.NewString()
+	status, body := doRequest(t, server, http.MethodGet, path, "", nil)
+
+	if status != http.StatusInternalServerError {
+		t.Errorf("GET %s expects status %d, got %d: %s", path, http.StatusInternalServerError, status, body)
+	}
+}
+
+func TestDeleteChirpDatabaseError(t *testing.T) {
+	server, _ := newTestServer(t, newBrokenTestDB(t))
+
+	path := "/api/chirps/" + uuid.NewString()
+	status, body := doRequest(t, server, http.MethodDelete, path, bearer(testToken(t, uuid.New())), nil)
+
+	if status != http.StatusInternalServerError {
+		t.Errorf("DELETE %s expects status %d, got %d: %s", path, http.StatusInternalServerError, status, body)
 	}
 }
