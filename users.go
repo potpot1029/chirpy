@@ -90,15 +90,8 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	token, err := auth.GetBearerToken(req.Header)
-	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "cannot retrieve access token from header", err)
-		return
-	}
-
-	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
-	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "invalid access token", err)
+	userID, ok := cfg.authenticatedUserID(w, req)
+	if !ok {
 		return
 	}
 

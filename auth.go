@@ -22,6 +22,24 @@ type UserLogin struct {
 	RefreshToken string    `json:"refresh_token"`
 }
 
+// authenticatedUserID responds with 401 and returns false when the request has
+// no valid access token.
+func (cfg *apiConfig) authenticatedUserID(w http.ResponseWriter, req *http.Request) (uuid.UUID, bool) {
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "cannot retrieve access token from header", err)
+		return uuid.Nil, false
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "invalid access token", err)
+		return uuid.Nil, false
+	}
+
+	return userID, true
+}
+
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 	type parameter struct {
 		Password string `json:"password"`

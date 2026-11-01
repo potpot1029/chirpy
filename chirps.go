@@ -9,7 +9,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
-	"github.com/potpot1029/chirpy/internal/auth"
 	"github.com/potpot1029/chirpy/internal/database"
 )
 
@@ -36,15 +35,8 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	bearerToken, err := auth.GetBearerToken(req.Header)
-	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "cannot retrieve bearer token", err)
-		return
-	}
-
-	userID, err := auth.ValidateJWT(bearerToken, cfg.jwtSecret)
-	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "invalid bearer token", err)
+	userID, ok := cfg.authenticatedUserID(w, req)
+	if !ok {
 		return
 	}
 
@@ -163,15 +155,8 @@ func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	token, err := auth.GetBearerToken(req.Header)
-	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "cannot retrieve access token from header", err)
-		return
-	}
-
-	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
-	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "invalid access token", err)
+	userID, ok := cfg.authenticatedUserID(w, req)
+	if !ok {
 		return
 	}
 
