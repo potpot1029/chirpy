@@ -11,7 +11,10 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
+	"github.com/potpot1029/chirpy/internal/auth"
 	"github.com/potpot1029/chirpy/internal/database"
 )
 
@@ -136,6 +139,18 @@ func decodeJSON[T any](t *testing.T, data []byte) T {
 
 func bearer(token string) string {
 	return "Bearer " + token
+}
+
+// testToken makes an access token without logging in. Passing an ID with no
+// user behind it gives a valid token for a deleted user.
+func testToken(t *testing.T, userID uuid.UUID) string {
+	t.Helper()
+
+	token, err := auth.MakeJWT(userID, testJWTSecret, time.Hour)
+	if err != nil {
+		t.Fatalf("error creating token: %v", err)
+	}
+	return token
 }
 
 func createTestUser(t *testing.T, server *httptest.Server, email, password string) User {

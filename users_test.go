@@ -127,6 +127,13 @@ func TestUpdateUser(t *testing.T) {
 			wantEmail:  "",
 		},
 		{
+			name:       "deleted user's token",
+			authHeader: bearer(testToken(t, uuid.New())),
+			body:       newCredentials,
+			wantStatus: http.StatusUnauthorized,
+			wantEmail:  "",
+		},
+		{
 			name:       "invalid JSON",
 			authHeader: bearer(login.Token),
 			body:       "{",

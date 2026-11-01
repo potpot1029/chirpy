@@ -22,8 +22,9 @@ type UserLogin struct {
 	RefreshToken string    `json:"refresh_token"`
 }
 
-// authenticatedUserID responds with 401 and returns false when the request has
-// no valid access token.
+// authenticatedUserID responds with an error and returns false unless the
+// request has a valid access token for a user who still exists. Tokens outlive
+// their users, so a valid signature alone is not enough.
 func (cfg *apiConfig) authenticatedUserID(w http.ResponseWriter, req *http.Request) (uuid.UUID, bool) {
 	token, err := auth.GetBearerToken(req.Header)
 	if err != nil {
@@ -34,6 +35,15 @@ func (cfg *apiConfig) authenticatedUserID(w http.ResponseWriter, req *http.Reque
 	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "invalid access token", err)
+		return uuid.Nil, false
+	}
+
+	if _, err := cfg.dbQueries.GetUserByID(req.Context(), userID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, http.StatusUnauthorized, "invalid access token", err)
+			return uuid.Nil, false
+		}
+		respondWithError(w, http.StatusInternalServerError, "error getting user from database", err)
 		return uuid.Nil, false
 	}
 

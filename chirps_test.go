@@ -156,6 +156,13 @@ func TestCreateChirp(t *testing.T) {
 			wantBody:   "",
 		},
 		{
+			name:       "deleted user's token",
+			authHeader: bearer(testToken(t, uuid.New())),
+			body:       chirp("hello world"),
+			wantStatus: http.StatusUnauthorized,
+			wantBody:   "",
+		},
+		{
 			name:       "invalid JSON",
 			authHeader: bearer(login.Token),
 			body:       "{",
@@ -373,6 +380,12 @@ func TestDeleteChirp(t *testing.T) {
 			name:       "no space in Authorization",
 			path:       chirpPath,
 			authHeader: "garbage",
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "deleted user's token",
+			path:       chirpPath,
+			authHeader: bearer(testToken(t, uuid.New())),
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
