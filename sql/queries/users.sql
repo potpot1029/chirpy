@@ -26,7 +26,7 @@ SET
 WHERE email = $1
 RETURNING *;
 
--- name: UpgradeChirpyRedByID :exec
+-- name: UpgradeChirpyRedByID :execrows
 UPDATE users 
 SET 
   is_chirpy_red = true

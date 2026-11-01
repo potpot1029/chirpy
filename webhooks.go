@@ -26,7 +26,7 @@ func (cfg *apiConfig) handlerPolkaWebhook(w http.ResponseWriter, req *http.Reque
 	decoder := json.NewDecoder(req.Body)
 	params := parameter{}
 	if err := decoder.Decode(&params); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "error decoding request body", err)
+		respondWithError(w, http.StatusBadRequest, "error decoding request body", err)
 		return
 	}
 
@@ -35,9 +35,13 @@ func (cfg *apiConfig) handlerPolkaWebhook(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	err = cfg.dbQueries.UpgradeChirpyRedByID(req.Context(), params.Data.UserID)
+	rows, err := cfg.dbQueries.UpgradeChirpyRedByID(req.Context(), params.Data.UserID)
 	if err != nil {
-		respondWithError(w, http.StatusNotFound, "error upgrading to chirpy red by user id", err)
+		respondWithError(w, http.StatusInternalServerError, "error upgrading to chirpy red by user id", err)
+		return
+	}
+	if rows == 0 {
+		respondWithError(w, http.StatusNotFound, "user not found", nil)
 		return
 	}
 

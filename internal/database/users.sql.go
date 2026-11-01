@@ -119,14 +119,17 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 	return i, err
 }
 
-const upgradeChirpyRedByID = `-- name: UpgradeChirpyRedByID :exec
+const upgradeChirpyRedByID = `-- name: UpgradeChirpyRedByID :execrows
 UPDATE users 
 SET 
   is_chirpy_red = true
 WHERE id = $1
 `
 
-func (q *Queries) UpgradeChirpyRedByID(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, upgradeChirpyRedByID, id)
-	return err
+func (q *Queries) UpgradeChirpyRedByID(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, upgradeChirpyRedByID, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
