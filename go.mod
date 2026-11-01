@@ -1,6 +1,6 @@
 module github.com/potpot1029/chirpy
 
-go 1.26.2
+go 1.26.10
 
 require (
 	github.com/alexedwards/argon2id v1.0.0

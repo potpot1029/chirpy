@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chirpy_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DB_URL: postgres://postgres:postgres@localhost:5432/chirpy_test?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Check for vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+      - name: Apply migrations
+        run: go run github.com/pressly/goose/v3/cmd/goose@v3.29.0 -dir sql/schema postgres "$TEST_DB_URL" up
+
+      - name: Test
+        shell: bash
+        run: go test -v -cover ./... | tee test.log
+
+      # Database tests skip themselves when TEST_DB_URL is missing, so a broken
+      # setup would otherwise still pass.
+      - name: Fail on skipped tests
+        run: |
+          if grep -E '^\s*--- SKIP' test.log; then
+            echo "Tests were skipped"
+            exit 1
+          fi
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build -t chirpy:ci .
